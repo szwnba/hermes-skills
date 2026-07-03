@@ -1,0 +1,13 @@
+# Environment variables and secrets
+.env
+*.b64
+__pycache__/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
