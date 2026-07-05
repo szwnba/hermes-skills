@@ -15,9 +15,11 @@ from collections import defaultdict
 os.environ["TODOIST_API_TOKEN"] = os.environ.get("TODOIST_API_TOKEN", "")
 sys.path.insert(0, "/root/.hermes/profiles/collector/skills/todoist/scripts")
 from todoist_helper import TodoistHelper
+from datetime import date, datetime, timezone
 
 KB = Path("/root/Documents/Obsidian Vault/00_Inbox")
 META_PATH = Path("/tmp/articles_meta.json")
+INBOX_PROJECT_ID = "6CrfQpMFrw9RJ6GW"  # 收集箱 project ID
 
 with open(META_PATH) as f:
     META = json.load(f)
@@ -252,7 +254,26 @@ def match_task(title):
 
 # ── Main ────────────────────────────────────────────────
 h = TodoistHelper()
-tasks = h.list_tasks()
+
+# Get all tasks, filter programmatically to:
+# 1. Exclude Inbox (收集箱)
+# 2. Only include tasks due today or overdue
+today_str = date.today().strftime("%Y-%m-%d")
+all_tasks = h.list_tasks()
+
+tasks = []
+for t in all_tasks:
+    # Skip Inbox project
+    if t.project_id == INBOX_PROJECT_ID:
+        continue
+    # Only include tasks with due date (today or overdue)
+    if t.due and t.due.date:
+        due_date = t.due.date
+        # due_date format is YYYY-MM-DD
+        if due_date <= today_str:
+            tasks.append(t)
+
+# Sort by priority (descending)
 tasks.sort(key=lambda t: -t.priority)
 
 prio_map = {1: "🔵", 2: "🟠", 3: "🔴", 4: "⚫"}
@@ -299,7 +320,10 @@ for t in tasks:
 
 print(f"\n{'='*70}")
 print(f"📊 汇总: {len(tasks)} 个任务 | {matched_count} 个有知识库匹配 | {len(unmatched)} 个待外部搜索")
+if len(tasks) == 0:
+    print(f"   (过滤条件: 今天/过期任务 + 排除收集箱)")
+    print(f"   (已有 {len(all_tasks)} 个任务全在收集箱中或无截止日期)")
 if unmatched:
-    print(f"\n🔍 以下任务需要补充知识库或外部搜索:")
+    print(f"n🔍 以下任务需要补充知识库或外部搜索:")
     for u in unmatched:
         print(f"   • {u[:50]}")
